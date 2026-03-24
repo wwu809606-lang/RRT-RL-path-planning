@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.DS_Store
+.ipynb_checkpoints/
+
+.env
+.venv/
+venv/
+conda-meta/
+
+results/
+data/temp/
+.idea/
+.vscode/
