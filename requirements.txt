@@ -1,0 +1,7 @@
+numpy>=1.24
+matplotlib>=3.7
+shapely>=2.0
+geopandas>=0.14
+fiona>=1.9
+pyproj>=3.6
+rtree>=1.2
