@@ -1,17 +1,38 @@
+# Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 
+# macOS / Jupyter / editors
 .DS_Store
 .ipynb_checkpoints/
-
-.env
-.venv/
-venv/
-conda-meta/
-
-results/
-data/temp/
 .idea/
 .vscode/
+
+# Environment files
+.env
+
+# Virtual environments
+uav/
+.venv/
+venv/
+env/
+
+# Conda
+conda-meta/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Temporary data
+data/temp/
+
+# Training artifacts
+results/checkpoints/
+results/logs/
+results/
