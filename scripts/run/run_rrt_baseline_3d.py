@@ -147,7 +147,7 @@ def plot_2d_result(gdf, meta, start_xyz, goal_xyz, tree_edges, path_xyz, outfile
             alpha=0.35
         )
 
-    if path_xyz is not None:
+    if path_xyz is not None and len(path_xyz) > 0:
         arr = np.asarray(path_xyz)
         ax.plot(
             arr[:, 0], arr[:, 1],
@@ -239,7 +239,7 @@ def plot_3d_result(gdf, meta, start_xyz, goal_xyz, path_xyz, outfile, z_max_cfg)
             for poly in geom.geoms:
                 add_extruded_polygon(ax, poly, h)
 
-    if path_xyz is not None:
+    if path_xyz is not None and len(path_xyz) > 0:
         arr = np.asarray(path_xyz, dtype=float)
         ax.plot(arr[:, 0], arr[:, 1], arr[:, 2], linewidth=2.6, label="Raw 3D RRT path")
 
@@ -322,21 +322,56 @@ def main():
 
     result = planner.plan(start_xyz=start_xyz, goal_xyz=goal_xyz)
 
-    if not result["success"]:
-        raise RuntimeError(
-            f"3D RRT 在 {result['iterations']} 次迭代内未找到可行路径。"
-            f"建议调大 max_iter、z_max，或微调 start/goal。"
-        )
-
-    path_xyz = result["path_xyz"]
+    path_xyz = result["path_xyz"] or []
     tree_edges = result["tree_edges"]
+
+    raw_path_length_m = None
+    if result["success"] and len(path_xyz) > 0:
+        raw_path_length_m = path_length_3d(path_xyz)
+
+    eval_summary = {
+        "random_seed": cfg["random_seed"],
+        "config": {
+            "start_xyz": list(start_xyz),
+            "goal_xyz": list(goal_xyz),
+            "z_min": cfg["z_min"],
+            "z_max": cfg["z_max"],
+            "step_size": cfg["step_size"],
+            "goal_sample_rate": cfg["goal_sample_rate"],
+            "max_iter": cfg["max_iter"],
+            "goal_tolerance": cfg["goal_tolerance"],
+            "collision_resolution": cfg["collision_resolution"],
+            "obstacle_buffer": cfg["obstacle_buffer"],
+            "map_margin": cfg["map_margin"],
+            "duplicate_threshold": 22.5,
+            "min_progress": 6.75,
+        },
+        "success": result["success"],
+        "iterations": result["iterations"],
+        "first_path_iter": result.get("first_path_iter", None),
+        "path_xyz": [list(p) for p in path_xyz],
+        "tree_edges": tree_edges,
+        "n_exp_invalid": result["n_exp_invalid"],
+        "n_inc_invalid": result["n_inc_invalid"],
+        "n_prog_invalid": result["n_prog_invalid"],
+        "invalid_ratio": result["invalid_ratio"],
+        "d_best_trace": result["d_best_trace"],
+        "raw_path_length_m": raw_path_length_m,
+    }
+
+    save_json(eval_summary, result_dir / "rrt_baseline_eval_3d.json")
 
     if cfg["save_tree_json"]:
         save_json(
             {
                 "random_seed": cfg["random_seed"],
+                "success": result["success"],
                 "iterations": result["iterations"],
                 "tree_edges": tree_edges,
+                "n_exp_invalid": result["n_exp_invalid"],
+                "n_inc_invalid": result["n_inc_invalid"],
+                "n_prog_invalid": result["n_prog_invalid"],
+                "invalid_ratio": result["invalid_ratio"],
             },
             result_dir / "rrt_tree_3d.json",
         )
@@ -345,41 +380,64 @@ def main():
         save_json(
             {
                 "random_seed": cfg["random_seed"],
+                "success": result["success"],
                 "start_xyz": list(start_xyz),
                 "goal_xyz": list(goal_xyz),
                 "raw_path_xyz": [list(p) for p in path_xyz],
-                "raw_path_length_m": path_length_3d(path_xyz),
+                "raw_path_length_m": raw_path_length_m,
                 "iterations": result["iterations"],
+                "first_path_iter": result.get("first_path_iter", None),
+                "n_exp_invalid": result["n_exp_invalid"],
+                "n_inc_invalid": result["n_inc_invalid"],
+                "n_prog_invalid": result["n_prog_invalid"],
+                "invalid_ratio": result["invalid_ratio"],
+                "d_best_trace": result["d_best_trace"],
             },
             result_dir / "rrt_path_3d.json",
         )
 
-    if cfg["save_2d_plot"]:
-        plot_2d_result(
-            gdf=gdf,
-            meta=meta,
-            start_xyz=start_xyz,
-            goal_xyz=goal_xyz,
-            tree_edges=tree_edges,
-            path_xyz=path_xyz,
-            outfile=result_dir / "rrt_baseline_3d_topview.png",
-        )
+    if result["success"] and len(path_xyz) > 0:
+        if cfg["save_2d_plot"]:
+            plot_2d_result(
+                gdf=gdf,
+                meta=meta,
+                start_xyz=start_xyz,
+                goal_xyz=goal_xyz,
+                tree_edges=tree_edges,
+                path_xyz=path_xyz,
+                outfile=result_dir / "rrt_baseline_3d_topview.png",
+            )
 
-    if cfg["save_3d_plot"]:
-        plot_3d_result(
-            gdf=gdf,
-            meta=meta,
-            start_xyz=start_xyz,
-            goal_xyz=goal_xyz,
-            path_xyz=path_xyz,
-            outfile=result_dir / "rrt_baseline_3d_raw.png",
-            z_max_cfg=cfg["z_max"],
-        )
+        if cfg["save_3d_plot"]:
+            plot_3d_result(
+                gdf=gdf,
+                meta=meta,
+                start_xyz=start_xyz,
+                goal_xyz=goal_xyz,
+                path_xyz=path_xyz,
+                outfile=result_dir / "rrt_baseline_3d_raw.png",
+                z_max_cfg=cfg["z_max"],
+            )
 
     print("3D RRT baseline 运行完成")
+    print(f"success = {result['success']}")
     print(f"iterations = {result['iterations']}")
-    print(f"raw_path_length = {path_length_3d(path_xyz):.2f} m")
+    print(f"first_path_iter = {result.get('first_path_iter', None)}")
+    print(f"n_exp_invalid = {result['n_exp_invalid']}")
+    print(f"n_inc_invalid = {result['n_inc_invalid']}")
+    print(f"n_prog_invalid = {result['n_prog_invalid']}")
+    print(f"invalid_ratio = {result['invalid_ratio']:.4f}")
+
+    if raw_path_length_m is not None:
+        print(f"raw_path_length = {raw_path_length_m:.2f} m")
+    else:
+        print("raw_path_length = None")
+
+    print(f"d_best_trace_len = {len(result['d_best_trace'])}")
     print(f"结果目录: {result_dir}")
+
+    if not result["success"]:
+        print("警告：本次 baseline 未找到可行路径，但评估 JSON 已保存。")
 
 
 if __name__ == "__main__":

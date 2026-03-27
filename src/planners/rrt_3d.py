@@ -225,7 +225,7 @@ class RRTPlanner3D:
             "success": False,
             "iterations": self.max_iter,
             "first_path_iter": None,
-            "path_xyz": None,
+            "path_xyz": [],
             "tree_edges": self.export_tree_edges(),
             "n_exp_invalid": n_exp_invalid,
             "n_inc_invalid": n_inc_invalid,
