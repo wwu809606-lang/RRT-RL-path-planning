@@ -302,7 +302,7 @@ def plot_tree_edges(ax, tree_edges, color="#9ecae1", linewidth=0.30, alpha=0.18)
         )
 
 
-def plot_invalid_edges(ax, invalid_edges, color="red", linewidth=1.15, alpha=0.90):
+def plot_invalid_edges(ax, invalid_edges, color="red", linewidth=1.15, alpha=1):
     """
     无效扩展画得更明显。
     """
@@ -354,10 +354,9 @@ def setup_axis(ax, meta, title):
 
 
 def add_start_goal(ax, start, goal):
-    ax.scatter(start[0], start[1], s=85, marker="o", color="black", zorder=7, label="Start")
-    ax.scatter(goal[0], goal[1], s=110, marker="*", color="black", zorder=7, label="Goal")
-    ax.text(start[0] + 8, start[1] + 8, "Start", fontsize=9)
-    ax.text(goal[0] + 8, goal[1] + 8, "Goal", fontsize=9)
+    ax.scatter(start[0], start[1], s=85, marker="o", color="#4A90E2", zorder=7, label="Start")
+    ax.scatter(goal[0], goal[1], s=110, marker="*", color="#cb181d", zorder=7, label="Goal")
+
 
 
 def plot_compare(
@@ -380,9 +379,9 @@ def plot_compare(
     # ---------------- baseline ----------------
     ax = axes[0]
     plot_buildings(ax, gdf)
-    plot_tree_edges(ax, base_edges, color="#6baed6", linewidth=0.28, alpha=0.18)
-    plot_invalid_edges(ax, base_invalid_edges, color="red", linewidth=1.15, alpha=0.92)
-    plot_path(ax, base_path, color="#08519c", label="Baseline Path", linewidth=2.8)
+    plot_tree_edges(ax, base_edges, color="green", linewidth=0.28, alpha=1)
+    plot_invalid_edges(ax, base_invalid_edges, color="green", linewidth=1.15, alpha=1)
+    plot_path(ax, base_path, color="#08519c", label="Baseline Path", linewidth=2)
     add_start_goal(ax, start, goal)
     setup_axis(
         ax,
@@ -394,9 +393,9 @@ def plot_compare(
     # ---------------- RL ----------------
     ax = axes[1]
     plot_buildings(ax, gdf)
-    plot_tree_edges(ax, rl_edges, color="#fcbba1", linewidth=0.28, alpha=0.18)
-    plot_invalid_edges(ax, rl_invalid_edges, color="red", linewidth=1.15, alpha=0.75)
-    plot_path(ax, rl_path, color="#cb181d", label="RRT + RL Path", linewidth=2.8)
+    plot_tree_edges(ax, rl_edges, color="green", linewidth=0.28, alpha=1)
+    plot_invalid_edges(ax, rl_invalid_edges, color="green", linewidth=1.15, alpha=1)
+    plot_path(ax, rl_path, color="#08519c", label="RRT + RL Path", linewidth=2)
     add_start_goal(ax, start, goal)
     setup_axis(
         ax,
@@ -420,7 +419,7 @@ def main():
     parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
     parser.add_argument("--outfile", type=str, default="results/vis/random_compare_2d.png")
     parser.add_argument("--max-tries", type=int, default=40)
-    parser.add_argument("--min-dist", type=float, default=600.0)
+    parser.add_argument("--min-dist", type=float, default=1000.0)
     parser.add_argument("--max-dist", type=float, default=1600.0)
     args = parser.parse_args()
 
