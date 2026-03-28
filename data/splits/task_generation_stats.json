@@ -1,0 +1,17 @@
+{
+  "n_total": 300,
+  "n_train": 210,
+  "n_val": 45,
+  "n_test": 45,
+  "seed": 42,
+  "min_start_goal_dist": 505.9891303180336,
+  "space_diag": 1445.683229480096,
+  "bounds": {
+    "x_min": 0.0,
+    "x_max": 1000.0,
+    "y_min": 0.0,
+    "y_max": 1000.0,
+    "z_min": 0.0,
+    "z_max": 300.0
+  }
+}

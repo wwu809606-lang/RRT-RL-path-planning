@@ -5,3 +5,15 @@ geopandas>=0.14
 fiona>=1.9
 pyproj>=3.6
 rtree>=1.2
+pyyaml
+stable-baselines3
+gymnasium
+geopandas
+shapely
+pandas
+matplotlib
+numpy
+torch>=2.0
+tensorboard
+tqdm
+rich

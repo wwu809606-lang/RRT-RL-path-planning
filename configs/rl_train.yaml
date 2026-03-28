@@ -1,0 +1,58 @@
+output_dir: results/rl
+
+data:
+  building_geojson: data/processed/buildings_with_height.geojson
+  train_tasks: data/splits/train_tasks.json
+  val_tasks: data/splits/val_tasks.json
+  test_tasks: data/splits/test_tasks.json
+
+planner:
+  x_min: 0.0
+  x_max: 1000.0
+  y_min: 0.0
+  y_max: 1000.0
+  z_min: 0.0
+  z_max: 300.0
+  step_size: 45.0
+  goal_sample_rate: 0.06
+  max_iter: 1200
+  goal_tolerance: 35.0
+  resolution: 5.0
+  random_seed: 42
+  duplicate_threshold: 22.5
+  min_progress: 6.75
+
+env:
+  k_candidates: 8
+
+reward:
+  goal_reward: 20.0
+  valid_step_reward: 0.2
+  progress_scale: 0.05
+  expansion_invalid_penalty: 1.0
+  increment_invalid_penalty: 0.4
+  progress_invalid_penalty: 0.8
+  timeout_penalty: 0.0
+
+train:
+  seed: 42
+  total_timesteps: 300000
+  n_envs: 4
+  checkpoint_freq: 20000
+  eval_freq: 10000
+  n_eval_episodes: 20
+
+ppo:
+  policy: MlpPolicy
+  learning_rate: 0.0003
+  n_steps: 1024
+  batch_size: 256
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  verbose: 1
+  device: auto
