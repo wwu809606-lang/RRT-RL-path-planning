@@ -386,7 +386,7 @@ def plot_compare(
     setup_axis(
         ax,
         meta,
-        title=f"Baseline RRT\ntime={base_result['runtime_sec']:.3f}s",
+        title=f"Baseline RRT",
     )
     ax.legend(loc="upper right")
 
@@ -400,7 +400,7 @@ def plot_compare(
     setup_axis(
         ax,
         meta,
-        title=f"RRT + RL\ntime={rl_result['runtime_sec']:.3f}s",
+        title=f"RRT + RL",
     )
     ax.legend(loc="upper right")
 
