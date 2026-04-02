@@ -1,8 +1,13 @@
 import argparse
 import random
+import sys
 import time
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
+
+# 添加项目根目录到路径
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -288,8 +293,8 @@ def plot_buildings(ax, gdf):
                 )
 
 
-def plot_tree_edges(ax, tree_edges, color="#9ecae1", linewidth=0.30, alpha=0.18):
-    for e in tree_edges:
+def plot_tree_edges(ax, tree_edges, color="#9ecae1", linewidth=0.30, alpha=0.18, label=None):
+    for i, e in enumerate(tree_edges):
         p1 = e["from"]
         p2 = e["to"]
         ax.plot(
@@ -299,14 +304,23 @@ def plot_tree_edges(ax, tree_edges, color="#9ecae1", linewidth=0.30, alpha=0.18)
             linewidth=linewidth,
             alpha=alpha,
             zorder=2,
+            label=label,
         )
+        # 只给第一条边添加label，避免图例重复
+        label = None
 
 
-def plot_invalid_edges(ax, invalid_edges, color="red", linewidth=1.15, alpha=1):
+def plot_invalid_edges(ax, invalid_edges, color="red", linewidth=1.15, alpha=1, label=None):
     """
     无效扩展画得更明显。
     """
-    for e in invalid_edges:
+    if len(invalid_edges) == 0:
+        print(f"[Warning] No invalid edges to plot for label: {label}")
+        return
+
+    print(f"[Plotting] {len(invalid_edges)} invalid edges for {label if label else 'unlabeled'}")
+
+    for i, e in enumerate(invalid_edges):
         p1 = e["from"]
         p2 = e["to"]
 
@@ -320,11 +334,14 @@ def plot_invalid_edges(ax, invalid_edges, color="red", linewidth=1.15, alpha=1):
             linewidth=linewidth,
             alpha=alpha,
             linestyle="--",
-            zorder=3,
+            zorder=4,  # 提高层级，确保在树上面
+            label=label,
         )
+        # 只给第一条边添加label，避免图例重复
+        label = None
 
 
-def plot_path(ax, path_xyz, color, label, linewidth=2.8, linestyle="-"):
+def plot_path(ax, path_xyz, color, label, linewidth=2.8, linestyle="-", alpha=1):
     ax.plot(
         path_xyz[:, 0],
         path_xyz[:, 1],
@@ -333,6 +350,7 @@ def plot_path(ax, path_xyz, color, label, linewidth=2.8, linestyle="-"):
         linestyle=linestyle,
         label=label,
         zorder=5,
+        alpha=alpha,
     )
     ax.scatter(
         path_xyz[:, 0],
@@ -340,6 +358,7 @@ def plot_path(ax, path_xyz, color, label, linewidth=2.8, linestyle="-"):
         color=color,
         s=10,
         zorder=6,
+        alpha=alpha,
     )
 
 
@@ -374,36 +393,105 @@ def plot_compare(
     rl_result,
     outfile,
 ):
-    fig, axes = plt.subplots(1, 2, figsize=(15, 7))
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
 
-    # ---------------- baseline ----------------
-    ax = axes[0]
+    # 绘制建筑
     plot_buildings(ax, gdf)
-    plot_tree_edges(ax, base_edges, color="green", linewidth=0.28, alpha=1)
-    plot_invalid_edges(ax, base_invalid_edges, color="green", linewidth=1.15, alpha=1)
-    plot_path(ax, base_path, color="#08519c", label="Baseline Path", linewidth=2)
-    add_start_goal(ax, start, goal)
-    setup_axis(
-        ax,
-        meta,
-        title=f"Baseline RRT",
-    )
-    ax.legend(loc="upper right")
 
-    # ---------------- RL ----------------
-    ax = axes[1]
-    plot_buildings(ax, gdf)
-    plot_tree_edges(ax, rl_edges, color="green", linewidth=0.28, alpha=1)
-    plot_invalid_edges(ax, rl_invalid_edges, color="green", linewidth=1.15, alpha=1)
-    plot_path(ax, rl_path, color="#08519c", label="RRT + RL Path", linewidth=2)
-    add_start_goal(ax, start, goal)
-    setup_axis(
-        ax,
-        meta,
-        title=f"RRT + RL",
-    )
-    ax.legend(loc="upper right")
+    # 绘制baseline的树（中蓝色，更明显）
+    plot_tree_edges(ax, base_edges, color="#4292c6", linewidth=0.5, alpha=1, label="Baseline RRT Tree")
 
+    # 绘制RL的树（深橙色，更明显）
+    plot_tree_edges(ax, rl_edges, color="#e6550d", linewidth=0.5, alpha=1, label="RRT + RL Tree")
+
+    # 绘制baseline的无效边（已禁用显示）
+    # plot_invalid_edges(ax, base_invalid_edges, color="green", linewidth=1.2, alpha=1.0, label="Baseline Invalid Expansions")
+
+    # 绘制RL的无效边（已禁用显示）
+    # plot_invalid_edges(ax, rl_invalid_edges, color="magenta", linewidth=1.2, alpha=1.0, label="RL Invalid Expansions")
+
+    # 绘制两条路径（使用不同颜色和线型）
+    plot_path(ax, base_path, color="#08519c", label="Baseline RRT Path", linewidth=2.5, linestyle="-", alpha=1)
+    plot_path(ax, rl_path, color="#d95f0e", label="RRT + RL Path", linewidth=2.5, linestyle="--", alpha=1)
+
+    # 添加起终点
+    add_start_goal(ax, start, goal)
+
+    # 设置坐标轴
+    ax.set_xlim(meta["x_min"], meta["x_max"])
+    ax.set_ylim(meta["y_min"], meta["y_max"])
+    ax.set_aspect("equal")
+    # ax.set_title("Baseline RRT vs RRT + RL Comparison", fontsize=14, fontweight="bold")
+    ax.set_xlabel("X (m)")
+    ax.set_ylabel("Y (m)")
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="upper left", fontsize=10)
+
+    plt.tight_layout()
+    Path(outfile).parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(outfile, dpi=240, bbox_inches="tight")
+    plt.show()
+    print(f"[Done] saved: {outfile}")
+
+
+def plot_compare_2x2(
+    gdf,
+    meta,
+    results_list,  # List of dicts containing run results
+    outfile,
+):
+    """
+    绘制2x2子图，每个子图显示一次运行结果
+    results_list: List of dicts with keys: start, goal, base_path, base_edges, rl_path, rl_edges
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(16, 14))
+    axes = axes.flatten()
+
+    for idx, result in enumerate(results_list):
+        ax = axes[idx]
+
+        # 绘制建筑
+        plot_buildings(ax, gdf)
+
+        # 绘制baseline的树
+        plot_tree_edges(ax, result["base_edges"], color="#4292c6", linewidth=0.5, alpha=1,
+                       label="Baseline RRT Tree" if idx == 0 else None)
+
+        # 绘制RL的树
+        plot_tree_edges(ax, result["rl_edges"], color="#e6550d", linewidth=0.5, alpha=1,
+                       label="RRT + RL Tree" if idx == 0 else None)
+
+        # 绘制两条路径
+        plot_path(ax, result["base_path"], color="#08519c",
+                 label="Baseline RRT Path" if idx == 0 else None,
+                 linewidth=2.5, linestyle="-", alpha=1)
+        plot_path(ax, result["rl_path"], color="#d95f0e",
+                 label="RRT + RL Path" if idx == 0 else None,
+                 linewidth=2.5, linestyle="--", alpha=1)
+
+        # 添加起终点
+        add_start_goal(ax, result["start"], result["goal"])
+
+        # 设置坐标轴
+        ax.set_xlim(meta["x_min"], meta["x_max"])
+        ax.set_ylim(meta["y_min"], meta["y_max"])
+        ax.set_aspect("equal")
+        ax.set_xlabel("X (m)")
+        ax.set_ylabel("Y (m)")
+        ax.grid(True, alpha=0.25)
+
+        # 只在第一个子图显示图例
+        if idx == 0:
+            ax.legend(loc="upper left", fontsize=9)
+
+        # 添加子图标题显示距离信息
+        dist = ((result["start"][0] - result["goal"][0]) ** 2 +
+                (result["start"][1] - result["goal"][1]) ** 2 +
+                (result["start"][2] - result["goal"][2]) ** 2) ** 0.5
+        ax.set_title(f"Run {idx + 1} (dist: {dist:.1f}m)", fontsize=11, fontweight="normal")
+
+    # 调整子图间距，缩小左右间隙
+    plt.subplots_adjust(wspace=0.15)
     plt.tight_layout()
     Path(outfile).parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(outfile, dpi=240, bbox_inches="tight")
@@ -417,8 +505,9 @@ def plot_compare(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
-    parser.add_argument("--outfile", type=str, default="results/vis/random_compare_2d.png")
-    parser.add_argument("--max-tries", type=int, default=40)
+    parser.add_argument("--outfile", type=str, default="results/vis/random_compare_2d_2x2.png")
+    parser.add_argument("--num-runs", type=int, default=4, help="Number of runs to plot (default: 4)")
+    parser.add_argument("--max-tries-per-run", type=int, default=40, help="Max trials to find a successful run")
     parser.add_argument("--min-dist", type=float, default=1000.0)
     parser.add_argument("--max-dist", type=float, default=1600.0)
     args = parser.parse_args()
@@ -427,7 +516,7 @@ def main():
     gdf, meta = load_buildings(BUILDING_FILE)
     obstacles = gdf_to_obstacles(gdf)
 
-    planner_kwargs = dict(
+    planner_kwargs_base = dict(
         obstacles=obstacles,
         x_min=meta["x_min"],
         x_max=meta["x_max"],
@@ -440,53 +529,73 @@ def main():
         max_iter=1200,
         goal_tolerance=35.0,
         resolution=5.0,
-        random_seed=random.randint(0, 10_000_000),
         duplicate_threshold=22.5,
         min_progress=6.75,
     )
 
-    for trial in range(args.max_tries):
-        start, goal = sample_start_goal(
-            obstacles=obstacles,
-            meta=meta,
-            min_dist=args.min_dist,
-            max_dist=args.max_dist,
-        )
+    results_list = []
 
-        print(f"[Trial {trial + 1}] start={start}, goal={goal}")
+    for run_idx in range(args.num_runs):
+        # 每次运行使用不同的随机种子
+        planner_kwargs = planner_kwargs_base.copy()
+        planner_kwargs["random_seed"] = random.randint(0, 10_000_000)
 
-        try:
-            base_path, base_edges, base_invalid_edges, base_result = run_baseline(
-                planner_kwargs, start, goal
-            )
-            rl_path, rl_edges, rl_invalid_edges, rl_result = run_rl(
-                args.model, planner_kwargs, start, goal
-            )
+        print(f"\n[Run {run_idx + 1}/{args.num_runs}] Looking for valid start/goal...")
 
-            print("[Baseline]", base_result)
-            print("[RL]", rl_result)
-
-            plot_compare(
-                gdf=gdf,
+        success = False
+        for trial in range(args.max_tries_per_run):
+            start, goal = sample_start_goal(
+                obstacles=obstacles,
                 meta=meta,
-                start=start,
-                goal=goal,
-                base_path=base_path,
-                base_edges=base_edges,
-                base_invalid_edges=base_invalid_edges,
-                base_result=base_result,
-                rl_path=rl_path,
-                rl_edges=rl_edges,
-                rl_invalid_edges=rl_invalid_edges,
-                rl_result=rl_result,
-                outfile=args.outfile,
+                min_dist=args.min_dist,
+                max_dist=args.max_dist,
             )
-            return
 
-        except RuntimeError as e:
-            print(f"[Trial {trial + 1}] failed: {e}")
+            print(f"[Run {run_idx + 1}, Trial {trial + 1}] start={start}, goal={goal}")
 
-    raise RuntimeError("多次随机采样后仍未找到双方都成功的任务，请增大 --max-tries。")
+            try:
+                base_path, base_edges, base_invalid_edges, base_result = run_baseline(
+                    planner_kwargs, start, goal
+                )
+                rl_path, rl_edges, rl_invalid_edges, rl_result = run_rl(
+                    args.model, planner_kwargs, start, goal
+                )
+
+                print("[Baseline]", base_result)
+                print("[RL]", rl_result)
+                print(f"[Debug] Baseline tree edges: {len(base_edges)}, invalid edges: {len(base_invalid_edges)}")
+                print(f"[Debug] RL tree edges: {len(rl_edges)}, invalid edges: {len(rl_invalid_edges)}")
+
+                results_list.append({
+                    "start": start,
+                    "goal": goal,
+                    "base_path": base_path,
+                    "base_edges": base_edges,
+                    "rl_path": rl_path,
+                    "rl_edges": rl_edges,
+                })
+
+                success = True
+                break
+
+            except RuntimeError as e:
+                print(f"[Run {run_idx + 1}, Trial {trial + 1}] failed: {e}")
+
+        if not success:
+            print(f"[Warning] Run {run_idx + 1} failed after {args.max_tries_per_run} trials")
+            if len(results_list) == 0:
+                raise RuntimeError("Failed to find any successful runs. Please increase --max-tries-per-run.")
+
+    # 绘制2x2子图
+    if len(results_list) > 0:
+        plot_compare_2x2(
+            gdf=gdf,
+            meta=meta,
+            results_list=results_list,
+            outfile=args.outfile,
+        )
+    else:
+        raise RuntimeError("No successful runs to plot.")
 
 
 if __name__ == "__main__":
