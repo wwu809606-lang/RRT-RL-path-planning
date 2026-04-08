@@ -66,7 +66,7 @@ def plot_first_path_iter_line(df_success: pd.DataFrame, out_dir: Path):
 
     ax.set_xlabel("Task Seed")
     ax.set_ylabel("First Path Iteration")
-    ax.set_title("First Feasible Path Iteration across Tasks")
+    # ax.set_title("First Feasible Path Iteration across Tasks")
 
     if len(x) > 0:
         ax.set_xlim(x.min() - 0.5, x.max() + 0.5)
@@ -90,7 +90,7 @@ def plot_invalid_types_bar(df_success: pd.DataFrame, out_dir: Path):
     bars = ax.bar(labels, means, width=0.62)
 
     ax.set_ylabel("Mean Count")
-    ax.set_title("Mean Counts of Invalid Expansion Types")
+    # ax.set_title("Mean Counts of Invalid Expansion Types")
     ax.margins(x=0.04, y=0.10)
     ax.grid(True, axis="y", alpha=0.25)
 
@@ -123,7 +123,7 @@ def plot_invalid_ratio_line(df_success: pd.DataFrame, out_dir: Path):
 
     ax.set_xlabel("Task Seed")
     ax.set_ylabel("Invalid Ratio")
-    ax.set_title("Invalid Ratio across Tasks")
+    # ax.set_title("Invalid Ratio across Tasks")
 
     if len(x) > 0:
         ax.set_xlim(x.min() - 0.5, x.max() + 0.5)
@@ -147,7 +147,7 @@ def plot_invalid_ratio_vs_first_path_iter(df_success: pd.DataFrame, out_dir: Pat
 
     ax.set_xlabel("Invalid Ratio")
     ax.set_ylabel("First Path Iteration")
-    ax.set_title("Invalid Ratio vs First Feasible Path Iteration")
+    # ax.set_title("Invalid Ratio vs First Feasible Path Iteration")
 
     ax.margins(x=0.05, y=0.08)
     ax.grid(True, alpha=0.25)
