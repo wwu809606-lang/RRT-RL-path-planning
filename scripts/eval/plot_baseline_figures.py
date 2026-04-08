@@ -2,6 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+# 设置全局字体为 serif（Times 风格）
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.serif'] = ['Times', 'DejaVu Serif', 'Liberation Serif', 'serif']
+plt.rcParams['font.size'] = 10
+plt.rcParams['mathtext.fontset'] = 'dejavuserif'
+
 
 # =========================================================
 # 配置
@@ -17,8 +23,14 @@ PAD_INCHES = 0.03
 # =========================================================
 def save_fig(fig, out_path: Path):
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=DPI, bbox_inches="tight", pad_inches=PAD_INCHES)
+    # 输出SVG和PDF矢量图
+    svg_path = out_path.with_suffix('.svg')
+    pdf_path = out_path.with_suffix('.pdf')
+    fig.savefig(svg_path, format='svg', bbox_inches="tight", pad_inches=PAD_INCHES)
+    fig.savefig(pdf_path, format='pdf', bbox_inches="tight", pad_inches=PAD_INCHES)
     plt.close(fig)
+    print(f"[Done] saved: {svg_path}")
+    print(f"[Done] saved: {pdf_path}")
 
 
 # =========================================================

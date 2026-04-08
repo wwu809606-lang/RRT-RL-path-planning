@@ -425,27 +425,41 @@ def plot_compare(
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.grid(True, alpha=0.25)
-    ax.legend(loc="upper left", fontsize=10)
+    ax.legend(loc="upper left", fontsize=12)
 
     plt.tight_layout()
     Path(outfile).parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(outfile, dpi=240, bbox_inches="tight")
+
+    # 输出矢量图（SVG和PDF）
+    svg_outfile = outfile.rsplit('.', 1)[0] + '.svg'
+    pdf_outfile = outfile.rsplit('.', 1)[0] + '.pdf'
+    plt.savefig(svg_outfile, format='svg', bbox_inches='tight')
+    plt.savefig(pdf_outfile, format='pdf', bbox_inches='tight')
     plt.show()
-    print(f"[Done] saved: {outfile}")
+    print(f"[Done] saved: {svg_outfile}")
+    print(f"[Done] saved: {pdf_outfile}")
 
 
-def plot_compare_2x2(
+def plot_compare_1x4(
     gdf,
     meta,
     results_list,  # List of dicts containing run results
     outfile,
 ):
     """
-    绘制2x2子图，每个子图显示一次运行结果
+    绘制1x4子图，每个子图显示一次运行结果
     results_list: List of dicts with keys: start, goal, base_path, base_edges, rl_path, rl_edges
     """
-    fig, axes = plt.subplots(2, 2, figsize=(16, 14))
+    # 设置全局字体为 serif（Times 风格）
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = ['Times', 'DejaVu Serif', 'Liberation Serif', 'serif']
+    plt.rcParams['font.size'] = 10
+    plt.rcParams['mathtext.fontset'] = 'dejavuserif'
+
+    fig, axes = plt.subplots(1, 4, figsize=(20, 5))
     axes = axes.flatten()
+
+    subtitle_labels = ['a', 'b', 'c', 'd']
 
     for idx, result in enumerate(results_list):
         ax = axes[idx]
@@ -480,23 +494,36 @@ def plot_compare_2x2(
         ax.set_ylabel("Y (m)")
         ax.grid(True, alpha=0.25)
 
-        # 只在第一个子图显示图例
-        if idx == 0:
-            ax.legend(loc="upper left", fontsize=9)
+    # 在整个figure上方添加图例（水平平铺）
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], color='#4292c6', lw=0.5, label='Baseline RRT Tree'),
+        Line2D([0], [0], color='#e6550d', lw=0.5, label='RRT + RL Tree'),
+        Line2D([0], [0], color='#08519c', lw=2.5, linestyle='-', label='Baseline RRT Path'),
+        Line2D([0], [0], color='#d95f0e', lw=2.5, linestyle='--', label='RRT + RL Path'),
+    ]
+    fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, 0.98),
+               ncol=4, fontsize=12, frameon=False)
 
-        # 添加子图标题显示距离信息
-        dist = ((result["start"][0] - result["goal"][0]) ** 2 +
-                (result["start"][1] - result["goal"][1]) ** 2 +
-                (result["start"][2] - result["goal"][2]) ** 2) ** 0.5
-        ax.set_title(f"Run {idx + 1} (dist: {dist:.1f}m)", fontsize=11, fontweight="normal")
+    # 在每个子图外面下方添加小标题 (a, b, c, d)
+    for idx, label in enumerate(subtitle_labels):
+        # 使用子图坐标系，在x轴标签下方
+        axes[idx].text(0.5, -0.12, f'({label})',
+                      transform=axes[idx].transAxes,
+                      fontsize=14, ha='center', va='top')
 
-    # 调整子图间距，缩小左右间隙
-    plt.subplots_adjust(wspace=0.15)
-    plt.tight_layout()
+    # 调整子图间距，为上方图例和底部标题留出空间
+    plt.subplots_adjust(wspace=0.2, top=0.94, bottom=0.15)
     Path(outfile).parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(outfile, dpi=240, bbox_inches="tight")
+
+    # 输出矢量图（SVG和PDF）
+    svg_outfile = outfile.rsplit('.', 1)[0] + '.svg'
+    pdf_outfile = outfile.rsplit('.', 1)[0] + '.pdf'
+    plt.savefig(svg_outfile, format='svg', bbox_inches='tight')
+    plt.savefig(pdf_outfile, format='pdf', bbox_inches='tight')
     plt.show()
-    print(f"[Done] saved: {outfile}")
+    print(f"[Done] saved: {svg_outfile}")
+    print(f"[Done] saved: {pdf_outfile}")
 
 
 # =========================================================
@@ -505,7 +532,7 @@ def plot_compare_2x2(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
-    parser.add_argument("--outfile", type=str, default="results/vis/random_compare_2d_2x2.png")
+    parser.add_argument("--outfile", type=str, default="results/vis/random_compare_2d_1x4.svg")
     parser.add_argument("--num-runs", type=int, default=4, help="Number of runs to plot (default: 4)")
     parser.add_argument("--max-tries-per-run", type=int, default=40, help="Max trials to find a successful run")
     parser.add_argument("--min-dist", type=float, default=1000.0)
@@ -586,9 +613,9 @@ def main():
             if len(results_list) == 0:
                 raise RuntimeError("Failed to find any successful runs. Please increase --max-tries-per-run.")
 
-    # 绘制2x2子图
+    # 绘制1x4子图
     if len(results_list) > 0:
-        plot_compare_2x2(
+        plot_compare_1x4(
             gdf=gdf,
             meta=meta,
             results_list=results_list,
