@@ -5,8 +5,14 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 from pathlib import Path
 
+# 设置全局字体为 serif（Times 风格）
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.serif'] = ['Times', 'DejaVu Serif', 'Liberation Serif', 'serif']
+plt.rcParams['font.size'] = 10
+plt.rcParams['mathtext.fontset'] = 'dejavuserif'
+
 infile = "data/processed/buildings_keep_15_recommended.geojson"
-outfile = "results/buildings_keep_15_3d_extrusion.png"
+outfile = "results/buildings_keep_15_3d_extrusion.svg"
 
 # -------------------------
 # 读取数据
@@ -148,7 +154,7 @@ ax.zaxis.pane.fill = False
 sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])
 cbar = fig.colorbar(sm, ax=ax, shrink=0.72, pad=0.08)
-cbar.set_label("Height (m)")
+cbar.set_label("Height (m)", fontsize=15)
 
 # -------------------------
 # 输出
@@ -156,7 +162,13 @@ cbar.set_label("Height (m)")
 Path(outfile).parent.mkdir(parents=True, exist_ok=True)
 
 plt.tight_layout()
-plt.savefig(outfile, dpi=300, bbox_inches="tight")
+
+# 输出SVG和PDF矢量图
+svg_outfile = outfile.rsplit('.', 1)[0] + '.svg'
+pdf_outfile = outfile.rsplit('.', 1)[0] + '.pdf'
+plt.savefig(svg_outfile, format='svg', bbox_inches="tight")
+plt.savefig(pdf_outfile, format='pdf', bbox_inches="tight")
 plt.close()
 
-print(f"已保存 {outfile}")
+print(f"已保存 {svg_outfile}")
+print(f"已保存 {pdf_outfile}")

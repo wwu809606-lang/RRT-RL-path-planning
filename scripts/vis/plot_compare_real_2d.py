@@ -503,7 +503,7 @@ def plot_compare_1x4(
         Line2D([0], [0], color='#d95f0e', lw=2.5, linestyle='--', label='RRT + RL Path'),
     ]
     fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, 0.98),
-               ncol=4, fontsize=12, frameon=False)
+               ncol=4, fontsize=15, frameon=False)
 
     # 在每个子图外面下方添加小标题 (a, b, c, d)
     for idx, label in enumerate(subtitle_labels):
