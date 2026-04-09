@@ -10,6 +10,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 import geopandas as gpd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Polygon as MplPolygon
@@ -104,7 +105,7 @@ def sample_free_point(
     while True:
         x = random.uniform(x_min, x_max)
         y = random.uniform(y_min, y_max)
-        z = random.uniform(max(z_min, 20.0), min(z_max, 80.0))
+        z = random.uniform(max(z_min, 20.0), min(z_max, 150.0))  # 提高上限到150m
         p = (x, y, z)
         if not point_in_collision_3d(p, obstacles):
             return p
@@ -118,7 +119,7 @@ def sample_start_goal(
     max_trials: int = 1000,
 ) -> Tuple[XYZ, XYZ]:
     """
-    采样相距较远的起终点。
+    采样相距较远的起终点，确保至少有一个点高度较高。
     """
     for _ in range(max_trials):
         start = sample_free_point(
@@ -133,6 +134,10 @@ def sample_start_goal(
             meta["y_min"], meta["y_max"],
             meta["z_min"], meta["z_max"],
         )
+
+        # 确保至少有一个点高度 > 100m
+        if max(start[2], goal[2]) < 100.0:
+            continue
 
         d = ((start[0] - goal[0]) ** 2 +
              (start[1] - goal[1]) ** 2 +
@@ -259,9 +264,19 @@ def run_rl(
 # =========================================================
 # 5. 绘图函数
 # =========================================================
-def plot_buildings(ax, gdf):
+def plot_buildings(ax, gdf, cmap=None, norm=None):
+    """绘制建筑物，根据高度使用不同颜色"""
+    import matplotlib as mpl
+
     for _, row in gdf.iterrows():
         geom = row.geometry
+        h = float(row["height_m"])
+
+        # 根据高度确定颜色
+        if cmap is not None and norm is not None:
+            facecolor = cmap(norm(h))
+        else:
+            facecolor = "#d9d9d9"
 
         if geom.geom_type == "Polygon":
             coords = np.asarray(geom.exterior.coords)
@@ -269,7 +284,7 @@ def plot_buildings(ax, gdf):
                 MplPolygon(
                     coords,
                     closed=True,
-                    facecolor="#d9d9d9",
+                    facecolor=facecolor,
                     edgecolor="#a0a0a0",
                     linewidth=0.35,
                     alpha=0.75,
@@ -284,7 +299,7 @@ def plot_buildings(ax, gdf):
                     MplPolygon(
                         coords,
                         closed=True,
-                        facecolor="#d9d9d9",
+                        facecolor=facecolor,
                         edgecolor="#a0a0a0",
                         linewidth=0.35,
                         alpha=0.75,
@@ -341,25 +356,32 @@ def plot_invalid_edges(ax, invalid_edges, color="red", linewidth=1.15, alpha=1, 
         label = None
 
 
-def plot_path(ax, path_xyz, color, label, linewidth=2.8, linestyle="-", alpha=1):
-    ax.plot(
-        path_xyz[:, 0],
-        path_xyz[:, 1],
-        color=color,
-        linewidth=linewidth,
-        linestyle=linestyle,
-        label=label,
-        zorder=5,
-        alpha=alpha,
-    )
-    ax.scatter(
-        path_xyz[:, 0],
-        path_xyz[:, 1],
-        color=color,
-        s=10,
-        zorder=6,
-        alpha=alpha,
-    )
+def plot_path_with_height(ax, path_xyz, base_color, cmap, norm, linewidth=2.5, alpha=1):
+    """绘制路径，颜色深浅表示高度"""
+    from matplotlib.collections import LineCollection
+
+    # 提取x, y坐标
+    xy = path_xyz[:, :2]  # 只取x和y
+    z = path_xyz[:, 2]    # 高度
+
+    # 创建线段
+    points = xy.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+    # 获取每段中点的高度
+    z_values = (z[:-1] + z[1:]) / 2
+
+    # 为每段分配颜色
+    colors = cmap(norm(z_values))
+
+    # 绘制线段集合
+    lc = LineCollection(segments, colors=colors, linewidth=linewidth, alpha=alpha, zorder=5)
+    ax.add_collection(lc)
+
+    # 绘制路径点
+    for i in range(len(path_xyz)):
+        color = cmap(norm(z[i]))
+        ax.scatter(xy[i, 0], xy[i, 1], color=color, s=10, zorder=6, alpha=alpha)
 
 
 def setup_axis(ax, meta, title):
@@ -367,8 +389,8 @@ def setup_axis(ax, meta, title):
     ax.set_ylim(meta["y_min"], meta["y_max"])
     ax.set_aspect("equal")
     ax.set_title(title)
-    ax.set_xlabel("X (m)")
-    ax.set_ylabel("Y (m)")
+    ax.set_xlabel("$X$ (m)")
+    ax.set_ylabel("$Y$ (m)")
     ax.grid(True, alpha=0.25)
 
 
@@ -412,7 +434,7 @@ def plot_compare(
 
     # 绘制两条路径（使用不同颜色和线型）
     plot_path(ax, base_path, color="#08519c", label="Baseline RRT Path", linewidth=2.5, linestyle="-", alpha=1)
-    plot_path(ax, rl_path, color="#d95f0e", label="RRT + RL Path", linewidth=2.5, linestyle="--", alpha=1)
+    plot_path(ax, rl_path, color="#d95f0e", label="RRT + RL Path", linewidth=2.5, linestyle="-", alpha=1)
 
     # 添加起终点
     add_start_goal(ax, start, goal)
@@ -422,8 +444,8 @@ def plot_compare(
     ax.set_ylim(meta["y_min"], meta["y_max"])
     ax.set_aspect("equal")
     # ax.set_title("Baseline RRT vs RRT + RL Comparison", fontsize=14, fontweight="bold")
-    ax.set_xlabel("X (m)")
-    ax.set_ylabel("Y (m)")
+    ax.set_xlabel("$X$ (m)")
+    ax.set_ylabel("$Y$ (m)")
     ax.grid(True, alpha=0.25)
     ax.legend(loc="upper left", fontsize=12)
 
@@ -461,11 +483,36 @@ def plot_compare_1x4(
 
     subtitle_labels = ['a', 'b', 'c', 'd']
 
+    # 创建高度颜色映射（统一高度范围）
+    heights = gdf["height_m"].values
+
+    # 收集所有路径的高度范围
+    all_path_z = []
+    for result in results_list:
+        all_path_z.extend(result["base_path"][:, 2])
+        all_path_z.extend(result["rl_path"][:, 2])
+
+    # 统一使用相同的高度范围
+    vmin = min(float(np.nanmin(heights)), min(all_path_z))
+    vmax = max(float(np.nanmax(heights)), max(all_path_z))
+
+    # 建筑颜色映射（黄绿色）
+    cmap_building = plt.cm.YlGn
+    norm_building = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+    # 路径颜色映射（蓝色）
+    cmap_baseline = plt.cm.Blues
+    norm_baseline = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+    # 路径颜色映射（橙色）
+    cmap_rl = plt.cm.YlOrRd
+    norm_rl = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
     for idx, result in enumerate(results_list):
         ax = axes[idx]
 
-        # 绘制建筑
-        plot_buildings(ax, gdf)
+        # 绘制建筑（带高度颜色）
+        plot_buildings(ax, gdf, cmap=cmap_building, norm=norm_building)
 
         # 绘制baseline的树
         plot_tree_edges(ax, result["base_edges"], color="#4292c6", linewidth=0.5, alpha=1,
@@ -475,13 +522,13 @@ def plot_compare_1x4(
         plot_tree_edges(ax, result["rl_edges"], color="#e6550d", linewidth=0.5, alpha=1,
                        label="RRT + RL Tree" if idx == 0 else None)
 
-        # 绘制两条路径
-        plot_path(ax, result["base_path"], color="#08519c",
-                 label="Baseline RRT Path" if idx == 0 else None,
-                 linewidth=2.5, linestyle="-", alpha=1)
-        plot_path(ax, result["rl_path"], color="#d95f0e",
-                 label="RRT + RL Path" if idx == 0 else None,
-                 linewidth=2.5, linestyle="--", alpha=1)
+        # 绘制两条路径（颜色深浅表示高度）
+        plot_path_with_height(ax, result["base_path"], "#08519c",
+                             cmap=cmap_baseline, norm=norm_baseline,
+                             linewidth=2.5, alpha=1)
+        plot_path_with_height(ax, result["rl_path"], "#d95f0e",
+                             cmap=cmap_rl, norm=norm_rl,
+                             linewidth=2.5, alpha=1)
 
         # 添加起终点
         add_start_goal(ax, result["start"], result["goal"])
@@ -490,8 +537,8 @@ def plot_compare_1x4(
         ax.set_xlim(meta["x_min"], meta["x_max"])
         ax.set_ylim(meta["y_min"], meta["y_max"])
         ax.set_aspect("equal")
-        ax.set_xlabel("X (m)")
-        ax.set_ylabel("Y (m)")
+        ax.set_xlabel("$X$ (m)")
+        ax.set_ylabel("$Y$ (m)")
         ax.grid(True, alpha=0.25)
 
     # 在整个figure上方添加图例（水平平铺）
@@ -500,10 +547,37 @@ def plot_compare_1x4(
         Line2D([0], [0], color='#4292c6', lw=0.5, label='Baseline RRT Tree'),
         Line2D([0], [0], color='#e6550d', lw=0.5, label='RRT + RL Tree'),
         Line2D([0], [0], color='#08519c', lw=2.5, linestyle='-', label='Baseline RRT Path'),
-        Line2D([0], [0], color='#d95f0e', lw=2.5, linestyle='--', label='RRT + RL Path'),
+        Line2D([0], [0], color='#d95f0e', lw=2.5, linestyle='-', label='RRT + RL Path'),
+        Line2D([0], [0], marker='o', color='w', markerfacecolor='#4A90E2', markersize=8, label='Start'),
+        Line2D([0], [0], marker='*', color='w', markerfacecolor='#cb181d', markersize=16, label='Goal'),
     ]
     fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, 0.98),
-               ncol=4, fontsize=15, frameon=False)
+               ncol=6, fontsize=15, frameon=False)
+
+    # 添加3个colorbar（在右侧，共用一个标题）
+    # 1. 建筑物高度
+    sm_building = mpl.cm.ScalarMappable(cmap=cmap_building, norm=norm_building)
+    sm_building.set_array([])
+    cbar_ax1 = fig.add_axes([0.91, 0.15, 0.012, 0.7])
+    cbar1 = fig.colorbar(sm_building, cax=cbar_ax1)
+    cbar1.ax.tick_params(labelsize=9, labelleft=True, labelright=False)
+
+    # 2. Baseline路径高度（隐藏刻度标签）
+    sm_baseline = mpl.cm.ScalarMappable(cmap=cmap_baseline, norm=norm_baseline)
+    sm_baseline.set_array([])
+    cbar_ax2 = fig.add_axes([0.93, 0.15, 0.012, 0.7])
+    cbar2 = fig.colorbar(sm_baseline, cax=cbar_ax2)
+    cbar2.ax.tick_params(labelleft=False, labelright=False)  # 不显示刻度标签
+
+    # 3. RL路径高度（隐藏刻度标签）
+    sm_rl = mpl.cm.ScalarMappable(cmap=cmap_rl, norm=norm_rl)
+    sm_rl.set_array([])
+    cbar_ax3 = fig.add_axes([0.95, 0.15, 0.012, 0.7])
+    cbar3 = fig.colorbar(sm_rl, cax=cbar_ax3)
+    cbar3.ax.tick_params(labelleft=False, labelright=False)  # 不显示刻度标签
+
+    # 在3个colorbar上方添加共同标题
+    fig.text(0.935, 0.86, "Height (m)", fontsize=12, ha='center', va='bottom')
 
     # 在每个子图外面下方添加小标题 (a, b, c, d)
     for idx, label in enumerate(subtitle_labels):
@@ -512,8 +586,8 @@ def plot_compare_1x4(
                       transform=axes[idx].transAxes,
                       fontsize=14, ha='center', va='top')
 
-    # 调整子图间距，为上方图例和底部标题留出空间
-    plt.subplots_adjust(wspace=0.2, top=0.94, bottom=0.15)
+    # 调整子图间距，为上方图例、底部标题和右侧3个colorbar留出空间
+    plt.subplots_adjust(wspace=0.2, top=0.94, bottom=0.15, right=0.89)
     Path(outfile).parent.mkdir(parents=True, exist_ok=True)
 
     # 输出矢量图（SVG和PDF）
