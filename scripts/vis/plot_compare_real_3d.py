@@ -1,4 +1,5 @@
 import argparse
+import json
 import random
 import sys
 import time
@@ -111,7 +112,7 @@ def sample_free_point(
     while True:
         x = random.uniform(x_min, x_max)
         y = random.uniform(y_min, y_max)
-        z = random.uniform(max(z_min, 20.0), min(z_max, 80.0))
+        z = random.uniform(max(z_min, 20.0), min(z_max, 150.0))  # 提高上限到150m
         p = (x, y, z)
         if not point_in_collision_3d(p, obstacles):
             return p
@@ -125,7 +126,7 @@ def sample_start_goal(
     max_trials: int = 1000,
 ) -> Tuple[XYZ, XYZ]:
     """
-    采样相距较远的起终点。
+    采样相距较远的起终点，确保至少有一个点高度较高。
     """
     for _ in range(max_trials):
         start = sample_free_point(
@@ -140,6 +141,10 @@ def sample_start_goal(
             meta["y_min"], meta["y_max"],
             meta["z_min"], meta["z_max"],
         )
+
+        # 确保至少有一个点高度 > 100m
+        if max(start[2], goal[2]) < 100.0:
+            continue
 
         d = ((start[0] - goal[0]) ** 2 +
              (start[1] - goal[1]) ** 2 +
@@ -409,6 +414,88 @@ def add_start_goal_3d(ax, start, goal):
     ax.scatter(goal[0], goal[1], goal[2], s=150, marker="*", color="#cb181d", zorder=7, label="Goal")
 
 
+# =========================================================
+# 5.5 Blender导出函数
+# =========================================================
+def geometry_to_coords(geom):
+    """将 shapely 几何转换为坐标列表"""
+    if geom.geom_type == "Polygon":
+        x, y = geom.exterior.xy
+        return list(zip(x, y))
+    elif geom.geom_type == "MultiPolygon":
+        coords = []
+        for poly in geom.geoms:
+            x, y = poly.exterior.xy
+            coords.append(list(zip(x, y)))
+        return coords
+    return []
+
+
+def export_scene_for_blender(
+    gdf,
+    meta,
+    start,
+    goal,
+    base_path,
+    base_invalid_edges,
+    base_result,
+    rl_path,
+    rl_invalid_edges,
+    rl_result,
+    outfile,
+):
+    """
+    将场景数据导出为 JSON，供 Blender 导入使用。
+    """
+    # 转换建筑数据
+    buildings = []
+    for _, row in gdf.iterrows():
+        geom = row.geometry
+        h = float(row["height_m"])
+        buildings.append({
+            "coordinates": geometry_to_coords(geom),
+            "height": h,
+        })
+
+    # 转换路径数据（转为列表格式）
+    base_path_list = base_path.tolist() if hasattr(base_path, 'tolist') else list(base_path)
+    rl_path_list = rl_path.tolist() if hasattr(rl_path, 'tolist') else list(rl_path)
+
+    # 构建 JSON 数据结构
+    scene_data = {
+        "metadata": {
+            "version": "1.0",
+            "description": "UAV path planning scene for Blender import",
+            "source": "plot_compare_real_3d.py",
+        },
+        "bounds": meta,
+        "start": list(start),
+        "goal": list(goal),
+        "buildings": buildings,
+        "paths": {
+            "baseline": {
+                "coordinates": base_path_list,
+                "result": base_result,
+                "invalid_edges": base_invalid_edges,
+            },
+            "rl": {
+                "coordinates": rl_path_list,
+                "result": rl_result,
+                "invalid_edges": rl_invalid_edges,
+            },
+        },
+    }
+
+    # 写入 JSON 文件
+    json_outfile = outfile.rsplit('.', 1)[0] + '_blender.json'
+    Path(json_outfile).parent.mkdir(parents=True, exist_ok=True)
+    with open(json_outfile, 'w', encoding='utf-8') as f:
+        json.dump(scene_data, f, indent=2, ensure_ascii=False)
+
+    print(f"[Done] Blender scene exported: {json_outfile}")
+    return json_outfile
+
+
 def plot_compare_3d(
     gdf,
     meta,
@@ -504,6 +591,8 @@ def main():
     parser.add_argument("--outfile", type=str, default="results/vis/random_compare_3d.svg")
     parser.add_argument("--min-dist", type=float, default=1000.0)
     parser.add_argument("--max-dist", type=float, default=1600.0)
+    parser.add_argument("--export-blender-json", action="store_true",
+                        help="Export scene data to JSON for Blender import")
     args = parser.parse_args()
 
     # 不固定随机种子
@@ -576,6 +665,22 @@ def main():
                 rl_result=rl_result,
                 outfile=args.outfile,
             )
+
+            # 可选：导出 Blender JSON
+            if args.export_blender_json:
+                export_scene_for_blender(
+                    gdf=gdf,
+                    meta=meta,
+                    start=start,
+                    goal=goal,
+                    base_path=base_path,
+                    base_invalid_edges=base_invalid_edges,
+                    base_result=base_result,
+                    rl_path=rl_path,
+                    rl_invalid_edges=rl_invalid_edges,
+                    rl_result=rl_result,
+                    outfile=args.outfile,
+                )
 
             success = True
             break
